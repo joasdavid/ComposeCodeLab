@@ -10,10 +10,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -44,6 +44,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.CenterVertically
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -51,11 +52,15 @@ import androidx.compose.ui.layout.AlignmentLine
 import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.constraintlayout.compose.ConstraintLayout
+import androidx.constraintlayout.compose.ConstraintSet
+import androidx.constraintlayout.compose.Dimension
 import coil.compose.rememberImagePainter
 import com.joasvpereira.dev.layouts.ui.theme.LayoutsTheme
 import kotlinx.coroutines.CoroutineScope
@@ -111,7 +116,10 @@ private fun BodyContent(modifier: Modifier) {
 
     Column(Modifier.fillMaxWidth()) {
         val chipsScroll = rememberScrollState()
-        Row(modifier = Modifier.fillMaxWidth().horizontalScroll(chipsScroll).padding(start = 8.dp, end = 16.dp)) {
+        Row(modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(chipsScroll)
+            .padding(start = 8.dp, end = 16.dp)) {
             StaggeredGrid(rows = 2) {
                 for (topic in topics) {
                     Chip(modifier = Modifier.padding(8.dp), text = topic)
@@ -122,14 +130,18 @@ private fun BodyContent(modifier: Modifier) {
         Row(Modifier.fillMaxWidth()) {
             Button(
                 onClick = scrollToTopClickEvent(coroutineScope, listScrollState),
-                modifier = Modifier.weight(0.5f).padding(start = 16.dp, end = 8.dp)
+                modifier = Modifier
+                    .weight(0.5f)
+                    .padding(start = 16.dp, end = 8.dp)
             ) {
                 Text(text = "Scroll to the top")
             }
 
             Button(
                 onClick = scrollToBottomClickEvent(coroutineScope, listScrollState, listSize),
-                modifier = Modifier.weight(0.5f).padding(start = 8.dp, end = 16.dp)
+                modifier = Modifier
+                    .weight(0.5f)
+                    .padding(start = 8.dp, end = 16.dp)
             ) {
                 Text(text = "Scroll to the bottom")
             }
@@ -356,7 +368,6 @@ fun PhotographerCardPreview() {
 //@Preview(showBackground = true)
 @Composable
 fun DefaultPreview() {
-    val context = LocalContext.current
     LayoutsTheme {
         LayoutsCodelab()
     }
@@ -406,7 +417,7 @@ val topics = listOf(
     "Religion", "Social sciences", "Technology", "TV", "Writing"
 )
 
-@Preview
+//@Preview
 @Composable
 fun ChipPreview() {
     LayoutsTheme {
@@ -415,5 +426,124 @@ fun ChipPreview() {
                 Chip(modifier = Modifier.padding(8.dp), text = topic)
             }
         }
+    }
+}
+
+// Constraint Layout
+
+@ExperimentalComposeUiApi
+@Composable
+fun ConstraintLayoutContent() {
+    ConstraintLayout {
+        // Create references for the composables to constrain
+        val (button, button2, text) = createRefs()
+        val barrier = createEndBarrier(button, text)
+
+        Button(onClick = { /* void */ },
+        modifier = Modifier.constrainAs(button) {
+            top.linkTo(parent.top, margin = 16.dp)
+        }
+        ) {
+            Text(text = "Button 1")
+        }
+
+        Button(onClick = { /* void */ },
+            modifier = Modifier.constrainAs(button2) {
+                top.linkTo(parent.top, margin = 16.dp)
+                start.linkTo(barrier)
+            }
+        ) {
+            Text(text = "Button 2")
+        }
+
+        // Assign reference "text" to the Text composable
+        // and constrain it to the bottom of the Button composable
+        Text("Text", Modifier.constrainAs(text) {
+            top.linkTo(button.bottom, margin = 16.dp)
+            centerAround(button.end)
+        })
+    }
+}
+
+@Preview
+@ExperimentalComposeUiApi
+@Composable
+fun ConstraintLayoutContentPreview() {
+    LayoutsTheme {
+        ConstraintLayoutContent()
+    }
+}
+
+@Composable
+fun LargeConstraintLayout() {
+    ConstraintLayout {
+        val text = createRef()
+        val guideline = createGuidelineFromStart(fraction = 0.5f)
+        Text(
+            text = "This is a very very very very very very very long text",
+            modifier = Modifier.constrainAs(text) {
+                linkTo(start = guideline, end = parent.end)
+                width = Dimension.preferredWrapContent
+            }
+        )
+    }
+}
+
+@Composable
+fun DecoupledConstraintLayout() {
+    BoxWithConstraints {
+
+        ConstraintLayout(decoupledConstraints()) {
+            Button(
+                onClick = { /* void */ },
+                modifier = Modifier.layoutId("bt1")
+            ) {
+                Text(text = "Button 1")
+            }
+
+            Button(
+                onClick = { /* void */ },
+                modifier = Modifier.layoutId("bt2")
+            ) {
+                Text(text = "Button 2")
+            }
+
+            Text(
+                "Text",
+                modifier = Modifier.layoutId("txt")
+            )
+        }
+    }
+}
+
+private fun decoupledConstraints(): ConstraintSet {
+    return ConstraintSet {
+        val bt1 = createRefFor("bt1")
+        val bt2 = createRefFor("bt2")
+        val txt = createRefFor("txt")
+        val barrier = createEndBarrier(bt1, txt)
+
+        constrain(bt1){
+            top.linkTo(parent.top, margin = 16.dp)
+        }
+
+        constrain(bt2){
+            top.linkTo(parent.top, margin = 16.dp)
+            start.linkTo(barrier)
+        }
+
+        constrain(txt){
+            top.linkTo(bt1.bottom, margin = 16.dp)
+            centerAround(bt1.end)
+        }
+    }
+}
+
+@Preview
+@ExperimentalComposeUiApi
+@Composable
+fun LargeConstraintLayoutPreview() {
+    LayoutsTheme {
+        DecoupledConstraintLayout()
     }
 }
